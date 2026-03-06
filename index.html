@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Docker – Szakmai Alapok Kezdőknek</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0e1a2b;
+  --blue:      #0db7ed;
+  --blue-soft: rgba(13,183,237,.12);
+  --blue-mid:  rgba(13,183,237,.25);
+  --orange:    #ff8c42;
+  --green:     #36e0a1;
+  --yellow:    #ffd166;
+  --red:       #ff5a5f;
+  --purple:    #b388ff;
+  --white:     #eaf4ff;
+  --muted:     #7aa3be;
+  --card:      rgba(255,255,255,.04);
+  --border:    rgba(13,183,237,.18);
+  --radius:    18px;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--white);
+  height: 100vh;
+  overflow: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 700px 500px at 10% 20%, rgba(13,183,237,.07) 0%, transparent 70%),
+    radial-gradient(ellipse 600px 400px at 90% 80%, rgba(255,140,66,.05) 0%, transparent 70%);
+  pointer-events:none; z-index:0;
+}
+
+#wrap { position:relative; width:100%; height:100vh; }
+
+.slide {
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding: 48px 72px;
+  opacity:0; transform:translateY(30px);
+  transition: opacity .4s ease, transform .4s ease;
+  pointer-events:none; z-index:1;
+  overflow: hidden;
+}
+.slide.active  { opacity:1; transform:translateY(0); pointer-events:all; }
+.slide.out     { opacity:0; transform:translateY(-30px); }
+
+#prog { position:fixed; bottom:0; left:0; height:4px;
+        background:linear-gradient(90deg,var(--blue),var(--orange));
+        transition:width .4s; z-index:200;
+        box-shadow:0 0 14px var(--blue); }
+
+#ctr { position:fixed; bottom:16px; right:24px;
+       font-family:'JetBrains Mono',monospace; font-size:12px;
+       color:var(--muted); z-index:200; letter-spacing:2px; }
+
+.nav { position:fixed; top:50%; transform:translateY(-50%);
+       background:rgba(13,183,237,.1); border:1px solid var(--border);
+       color:var(--blue); width:44px; height:44px; border-radius:50%;
+       font-size:18px; cursor:pointer; display:flex;
+       align-items:center; justify-content:center;
+       transition:background .2s; z-index:200; }
+.nav:hover { background:rgba(13,183,237,.25); }
+#pv { left:16px; } #nx { right:16px; }
+
+#dots { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+        display:flex; gap:7px; z-index:200; }
+.dot { width:7px; height:7px; border-radius:50%; background:var(--muted);
+       cursor:pointer; transition:all .2s; }
+.dot.on { background:var(--blue); transform:scale(1.5); }
+
+/* ── TYPOGRAPHY ── */
+.title {
+  font-size: clamp(26px,4vw,50px);
+  font-weight:900; line-height:1.1;
+  margin-bottom:8px; text-align:center;
+}
+.sub { font-size:clamp(13px,1.6vw,18px); color:var(--muted);
+       text-align:center; margin-bottom:28px; line-height:1.6; max-width:720px; }
+
+.hl-blue   { color:var(--blue); }
+.hl-orange { color:var(--orange); }
+.hl-green  { color:var(--green); }
+.hl-yellow { color:var(--yellow); }
+.hl-purple { color:var(--purple); }
+
+/* ── HERO ── */
+.emoji-hero { font-size:clamp(60px,10vw,110px); margin-bottom:18px;
+              filter:drop-shadow(0 0 30px rgba(13,183,237,.5));
+              animation:bob 3s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+/* ── INFO BOX (replaces analogy box) ── */
+.infobox {
+  background: linear-gradient(135deg, rgba(13,183,237,.09), rgba(13,183,237,.03));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 26px;
+  max-width: 820px; width:100%;
+  margin-top:14px;
+  position:relative;
+}
+.infobox::before { content:'ℹ️  Fontos'; position:absolute; top:-12px; left:20px;
+  background:var(--blue); color:#0e1a2b; font-size:11px; font-weight:800;
+  padding:3px 12px; border-radius:20px; letter-spacing:1px; }
+.infobox p { font-size:clamp(13px,1.4vw,15px); line-height:1.75; }
+
+/* ── CARD GRID ── */
+.grid { display:grid; gap:14px; width:100%; max-width:950px; }
+.g2 { grid-template-columns:repeat(2,1fr); }
+.g3 { grid-template-columns:repeat(3,1fr); }
+.g4 { grid-template-columns:repeat(4,1fr); }
+
+.card {
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px 22px;
+  transition:transform .2s, box-shadow .2s;
+}
+.card:hover { transform:translateY(-3px); box-shadow:0 8px 30px rgba(13,183,237,.1); }
+.card .ico { font-size:28px; margin-bottom:10px; }
+.card h3 { font-size:15px; font-weight:800; margin-bottom:6px; }
+.card p  { font-size:13px; color:var(--muted); line-height:1.7; }
+.card .tag { display:inline-block; background:var(--blue-soft); color:var(--blue);
+             border-radius:6px; padding:2px 9px; font-size:11px; font-weight:700;
+             margin-bottom:8px; font-family:'JetBrains Mono',monospace; }
+
+/* ── FLOW ── */
+.flow { display:flex; align-items:stretch; gap:0; width:100%; max-width:960px; flex-wrap:wrap; justify-content:center; }
+.flow-item { background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+             padding:16px 20px; text-align:center; flex:1; min-width:130px; max-width:175px; }
+.flow-item .fi { font-size:30px; margin-bottom:8px; }
+.flow-item h4 { font-size:13px; font-weight:800; margin-bottom:4px; }
+.flow-item p  { font-size:11px; color:var(--muted); line-height:1.5; }
+.flow-arrow { display:flex; align-items:center; color:var(--blue); font-size:22px; padding:0 6px; flex-shrink:0; }
+
+/* ── CODE ── */
+.code {
+  background:#080f1a; border:1px solid var(--border); border-radius:14px;
+  padding:18px 22px; font-family:'JetBrains Mono',monospace;
+  font-size:clamp(11px,1.1vw,13px);
+  width:100%; max-width:800px; position:relative; overflow-x:auto;
+  display:flex; flex-direction:column; gap:0;
+}
+.code[data-lbl]::before { content:attr(data-lbl); position:absolute; top:-12px; left:18px;
+  background:var(--blue); color:#0e1a2b; font-size:11px; font-weight:800;
+  padding:2px 12px; border-radius:20px; letter-spacing:1px; font-family:'Nunito',sans-serif; }
+.ln {
+  display:block;
+  padding: 2px 0;
+  line-height: 1.6;
+  white-space: pre;
+  border-bottom: 1px solid rgba(13,183,237,.045);
+}
+.ln:last-child { border-bottom: none; }
+.ln.empty { height: 10px; border-bottom: none; }
+.kw { color:#ff79c6; } .cm { color:#50fa7b; } .st { color:#ffd166; }
+.cc { color:#5a6f8a; font-style:italic; } .vr { color:var(--blue); }
+
+/* ── TABLE ── */
+.tbl { width:100%; max-width:820px; border-collapse:collapse; font-size:13px; }
+.tbl th { background:rgba(13,183,237,.15); padding:12px 18px; text-align:left;
+          font-weight:800; color:var(--blue); border-bottom:1px solid var(--border); }
+.tbl td { padding:11px 18px; border-bottom:1px solid rgba(255,255,255,.04);
+          color:var(--muted); vertical-align:top; }
+.tbl tr:hover td { background:var(--blue-soft); color:var(--white); }
+.ok { color:var(--green); font-weight:700; } .no { color:var(--red); font-weight:700; }
+
+/* ── CALLOUT ── */
+.callout { background:linear-gradient(135deg,var(--blue-soft),transparent);
+           border-left:4px solid var(--blue); border-radius:0 12px 12px 0;
+           padding:14px 20px; width:100%; max-width:820px; margin-top:14px; }
+.callout p { font-size:14px; line-height:1.7; }
+
+/* ── TWO COL ── */
+.two { display:grid; grid-template-columns:1fr 1fr; gap:22px;
+       width:100%; max-width:960px; align-items:start; }
+
+/* ── LAYERS ── */
+.layers { display:flex; flex-direction:column; gap:6px; width:100%; max-width:560px; }
+.layer { border-radius:10px; padding:12px 20px; font-size:13px; font-weight:700;
+         display:flex; align-items:center; gap:12px; cursor:default; transition:transform .15s; }
+.layer:hover { transform:translateX(6px); }
+.layer .li { font-size:20px; }
+.l1 { background:rgba(13,183,237,.18);  border:1px solid rgba(13,183,237,.4); }
+.l2 { background:rgba(179,136,255,.15); border:1px solid rgba(179,136,255,.35); }
+.l3 { background:rgba(255,209,102,.12); border:1px solid rgba(255,209,102,.3); }
+.l4 { background:rgba(54,224,161,.12);  border:1px solid rgba(54,224,161,.3); }
+.l5 { background:rgba(255,140,66,.12);  border:1px solid rgba(255,140,66,.3); }
+
+/* ── BIG NUMBERS ── */
+.bignums { display:flex; gap:20px; flex-wrap:wrap; justify-content:center; max-width:900px; }
+.bignum { background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+          padding:24px 28px; text-align:center; flex:1; min-width:150px; }
+.bignum span { display:block; font-family:'JetBrains Mono',monospace;
+               font-size:clamp(28px,3.5vw,48px); font-weight:700; color:var(--blue); }
+.bignum p { font-size:12px; color:var(--muted); margin-top:6px; }
+
+/* ── PILL ── */
+.pill { display:inline-block; border-radius:30px; padding:5px 16px;
+        font-size:12px; font-weight:800; margin:4px; letter-spacing:.5px; }
+.pill-blue   { background:rgba(13,183,237,.15); color:var(--blue);   border:1px solid rgba(13,183,237,.3); }
+.pill-orange { background:rgba(255,140,66,.15); color:var(--orange); border:1px solid rgba(255,140,66,.3); }
+.pill-green  { background:rgba(54,224,161,.15); color:var(--green);  border:1px solid rgba(54,224,161,.3); }
+
+/* ── INLINE CODE ── */
+ic { background:var(--blue-soft); color:var(--blue); padding:1px 7px;
+     border-radius:5px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; }
+
+/* ── UTIL ── */
+.mt  { margin-top:16px; }
+.mt2 { margin-top:24px; }
+.center { text-align:center; }
+.w860 { max-width:860px; width:100%; }
+
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<div id="ctr"></div>
+<button class="nav" id="pv">&#8592;</button>
+<button class="nav" id="nx">&#8594;</button>
+<div id="dots"></div>
+
+<div id="wrap">
+
+<!-- ══════════════════════ 1. HERO ══════════════════════ -->
+<section class="slide" id="s0">
+  <div class="emoji-hero">🐳</div>
+  <div class="title"><span class="hl-blue">Docker</span> – Szakmai Alapok</div>
+  <div class="sub">
+    A modern szoftverfejlesztés egyik legfontosabb eszköze.<br>
+    Lépésről lépésre, érthetően – akár teljesen nulláról indulsz.
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px;">
+    <span class="pill pill-blue">🎯 Kezdőknek</span>
+    <span class="pill pill-orange">🇭🇺 Magyar</span>
+    <span class="pill pill-green">💻 Kódpéldákkal</span>
+  </div>
+</section>
+
+<!-- ══════════════════════ 2. A PROBLÉMA ══════════════════════ -->
+<section class="slide" id="s1">
+  <div class="title">Miért van szükség <span class="hl-orange">egyáltalán</span> Dockerre?</div>
+  <div class="sub">A probléma, amit minden fejlesztő ismer</div>
+
+  <div class="grid g2 mt" style="max-width:820px">
+    <div class="card" style="border-color:rgba(255,90,95,.3)">
+      <div class="ico">😤</div>
+      <h3>A fejlesztő gépe</h3>
+      <p>A fejlesztő megírja az alkalmazást, leteszteli a saját gépén → <strong style="color:var(--green)">minden tökéletesen működik.</strong><br><br>
+      Python 3.11, specifikus library verziók, lokális env változók – mind pontosan beállítva.</p>
+    </div>
+    <div class="card" style="border-color:rgba(255,90,95,.3)">
+      <div class="ico">💥</div>
+      <h3>A szerver / kollégák gépe</h3>
+      <p>Feltelepítik egy másik gépre → <strong style="color:var(--red)">semmi nem működik.</strong><br><br>
+      Más Python verzió, hiányzó library, eltérő OS, más env konfiguráció – a környezet nem reprodukálható.</p>
+    </div>
+  </div>
+
+  <div class="infobox mt2">
+    <p>
+      Ezt a problémát hívják <strong style="color:var(--blue)">"works on my machine"</strong> szindrómának – és évtizedek óta gyötri a szoftveripart.
+      A gyökér oka: az alkalmazás és a futtatási <strong style="color:var(--orange)">környezete szét van választva</strong>.
+      A Docker megoldása: csomagold össze az alkalmazást <strong style="color:var(--blue)">a teljes futtatási környezetével együtt</strong>
+      – OS library-k, runtime, konfig, minden – egyetlen hordozható egységbe.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════ 3. MI A DOCKER? ══════════════════════ -->
+<section class="slide" id="s2">
+  <div class="title">Mi az a <span class="hl-blue">Docker?</span></div>
+  <div class="sub">Definíció és alapkoncepció</div>
+
+  <div class="two mt">
+    <div>
+      <div class="card">
+        <div class="ico">📦</div>
+        <h3>Konténerizációs platform</h3>
+        <p>A Docker egy nyílt forráskódú eszköz, amely lehetővé teszi alkalmazások <strong style="color:var(--blue)">konténerekbe</strong> csomagolását.<br><br>
+        Egy konténer tartalmazza az alkalmazást <em>és</em> az összes függőségét: runtime, system library-k, konfigurációs fájlok – mindent, ami a futáshoz kell.<br><br>
+        Az így becsomagolt alkalmazás <strong style="color:var(--green)">bármely Docker-kompatibilis gépen identikusan fut</strong>.</p>
+      </div>
+      <div class="card mt">
+        <div class="ico">📅</div>
+        <h3>Rövid történet</h3>
+        <p>
+          <strong style="color:var(--blue)">2013</strong> – Solomon Hykes publikálta a Docker-t (dotCloud startup)<br>
+          <strong style="color:var(--blue)">2014</strong> – Docker Hub elindult, robbanásszerű növekedés<br>
+          <strong style="color:var(--blue)">2015</strong> – OCI (Open Container Initiative) szabvány alapítása<br>
+          <strong style="color:var(--blue)">2017</strong> – Moby projekt: a Docker engine open source<br>
+          <strong style="color:var(--blue)">Ma</strong> – 14M+ fejlesztő, 13 milliárd pull/hó
+        </p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="border-color:rgba(13,183,237,.35); margin-bottom:14px">
+        <div class="ico">🔑</div>
+        <h3>A konténer lényege</h3>
+        <p>
+          A konténer egy <strong style="color:var(--blue)">process-szintű izolációs egység</strong>. Saját fájlrendszert, hálózatot és process-teret lát – de a host OS kernelét osztja meg.<br><br>
+          Ez teszi <strong style="color:var(--green)">sokkal könnyebbé és gyorsabbá</strong> a virtuális gépeknél: nincs szükség teljes guest OS-re.
+        </p>
+      </div>
+      <div class="card" style="border-color:rgba(54,224,161,.3)">
+        <div class="ico">⚙️</div>
+        <h3>Mögöttes Linux technológiák</h3>
+        <p>
+          A Docker a Linux kernel két funkciójára épül:<br><br>
+          <strong style="color:var(--blue)">Namespaces</strong> – izolálják a konténer process-eit, hálózatát, fájlrendszerét<br>
+          <strong style="color:var(--purple)">cgroups</strong> – korlátozzák a CPU, memória és I/O erőforrás-használatot
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 4. KONTÉNER VS VM ══════════════════════ -->
+<section class="slide" id="s3">
+  <div class="title">Konténer vs. <span class="hl-orange">Virtuális Gép</span></div>
+  <div class="sub">Mindkettő izolációt nyújt – de nagyon különböző módon</div>
+
+  <div class="grid g2 mt" style="max-width:820px">
+    <div class="card" style="border-color:rgba(255,140,66,.3)">
+      <div class="ico">🖥️</div>
+      <h3>Virtuális gép (VM)</h3>
+      <p>
+        A hypervisor (pl. VMware, VirtualBox, KVM) teljes hardvert szimulál.<br><br>
+        Minden VM saját <strong style="color:var(--orange)">guest OS-t</strong> futtat (kernel + userspace), saját dedikált memóriával és CPU-val.<br><br>
+        <strong>Eredmény:</strong> erős izoláció, de nagy overhead – GB-os méret, perces indulás.
+      </p>
+    </div>
+    <div class="card" style="border-color:rgba(13,183,237,.3)">
+      <div class="ico">📦</div>
+      <h3>Docker konténer</h3>
+      <p>
+        Nincs hypervisor, nincs guest OS. A konténerek közvetlenül a <strong style="color:var(--blue)">host kernel felett</strong> futnak.<br><br>
+        Az izoláció namespaces + cgroups segítségével valósul meg – OS-szintű, nem hardver-szintű.<br><br>
+        <strong>Eredmény:</strong> közel natív teljesítmény, MB-os méret, másodperces indulás.
+      </p>
+    </div>
+  </div>
+
+  <table class="tbl mt2">
+    <thead><tr><th>Szempont</th><th>🖥️ Virtuális gép</th><th>📦 Docker konténer</th></tr></thead>
+    <tbody>
+      <tr><td>Indulási idő</td><td class="no">1–5 perc</td><td class="ok">1–3 másodperc</td></tr>
+      <tr><td>Lemezhasználat</td><td class="no">5–20 GB (teljes OS)</td><td class="ok">50–500 MB</td></tr>
+      <tr><td>Izoláció szintje</td><td>Hardver-szintű</td><td>OS/process-szintű</td></tr>
+      <tr><td>Teljesítmény overhead</td><td class="no">Jelentős (virtualizáció)</td><td class="ok">Minimális (~1–2%)</td></tr>
+      <tr><td>Hordozhatóság</td><td>Nehézkes (VMDK, OVF)</td><td class="ok">Egyszerű (image registry)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════════════════ 5. ALAPFOGALMAK ══════════════════════ -->
+<section class="slide" id="s4">
+  <div class="title">A 3 alapfogalom, amit <span class="hl-blue">mindenképp</span> érteni kell</div>
+  <div class="sub">Dockerfile → Image → Container – ez a Docker alapciklusa</div>
+
+  <div class="grid g3 mt2" style="max-width:960px">
+    <div class="card" style="border-color:rgba(13,183,237,.4)">
+      <div class="ico">📋</div>
+      <div class="tag">DOCKERFILE</div>
+      <h3>Build instrukciók</h3>
+      <p>
+        Egy szöveges fájl, amely lépésről lépésre leírja, <strong style="color:var(--blue)">hogyan kell felépíteni az image-t</strong>.<br><br>
+        Tartalmazza: melyik base image-ből induljunk, milyen csomagokat telepítsünk, milyen fájlokat másoljunk be, hogyan induljon el az alkalmazás.
+      </p>
+    </div>
+    <div class="card" style="border-color:rgba(179,136,255,.4)">
+      <div class="ico">🖼️</div>
+      <div class="tag" style="background:rgba(179,136,255,.15);color:var(--purple);border-color:rgba(179,136,255,.3)">IMAGE</div>
+      <h3>Read-only snapshot</h3>
+      <p>
+        A <ic>docker build</ic> parancs a Dockerfile alapján létrehoz egy <strong style="color:var(--purple)">immutable (nem módosítható) rétegelt image-t</strong>.<br><br>
+        Az image tartalmazza a teljes fájlrendszert, amit a konténer futás közben használ. Megosztható registry-n keresztül.
+      </p>
+    </div>
+    <div class="card" style="border-color:rgba(54,224,161,.4)">
+      <div class="ico">⚙️</div>
+      <div class="tag" style="background:rgba(54,224,161,.12);color:var(--green);border-color:rgba(54,224,161,.3)">CONTAINER</div>
+      <h3>Futó process-izolátum</h3>
+      <p>
+        A <ic>docker run</ic> parancs elindít egy konténert az image-ből. A konténer az image tetejére helyez egy <strong style="color:var(--green)">írható réteget</strong> (copy-on-write).<br><br>
+        Egy image-ből egyszerre <em>több konténer</em> is futtatható, teljesen függetlenül.
+      </p>
+    </div>
+  </div>
+
+  <div class="infobox mt2" style="max-width:960px">
+    <p>
+      <strong style="color:var(--blue)">A kapcsolat:</strong> &nbsp;
+      <ic>Dockerfile</ic> → <strong>build</strong> →
+      <ic>Image</ic> → <strong>push/pull</strong> →
+      <ic>Registry</ic> → <strong>run</strong> →
+      <ic>Container</ic> (futó process) &nbsp;
+      — Ez a Docker teljes életciklusa.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════ 6. IMAGE RÉTEGEK ══════════════════════ -->
+<section class="slide" id="s5">
+  <div class="title">Image <span class="hl-blue">rétegek</span> és Union FS</div>
+  <div class="sub">Miért hatékony a Docker tárolási modellje?</div>
+
+  <div class="two mt">
+    <div>
+      <div class="layers">
+        <div class="layer l1"><span class="li">📦</span><div><strong>Base Layer – FROM ubuntu:22.04</strong><br><span style="font-size:11px;color:var(--muted)">Az alap OS fájlrendszer – read-only, megosztott</span></div></div>
+        <div class="layer l2"><span class="li">📥</span><div><strong>Dependency Layer – RUN apt-get install</strong><br><span style="font-size:11px;color:var(--muted)">Telepített csomagok – cache-elhető réteg</span></div></div>
+        <div class="layer l3"><span class="li">📂</span><div><strong>App Layer – COPY . /app</strong><br><span style="font-size:11px;color:var(--muted)">A forráskód – ez változik a legtöbbször</span></div></div>
+        <div class="layer l4"><span class="li">⚙️</span><div><strong>Config Layer – ENV / EXPOSE / CMD</strong><br><span style="font-size:11px;color:var(--muted)">Futtatási konfiguráció</span></div></div>
+        <div class="layer l5"><span class="li">✏️</span><div><strong>Container Layer – R/W (futás közben)</strong><br><span style="font-size:11px;color:var(--muted)">Csak a konténerben él – konténer törlésével elveszik</span></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">⚡</div>
+        <h3>Build cache – miért fontos?</h3>
+        <p>
+          Docker minden réteget cachelel. Ha egy réteg bemenete nem változott, <strong style="color:var(--blue)">újrahasználja a cache-t</strong> – nem futtatja újra azt a lépést.<br><br>
+          <strong style="color:var(--orange)">Ezért kritikus a sorrend:</strong> a ritkán változó dolgok (pl. csomagok telepítése) kerüljenek <em>előre</em>, a sűrűn változó kód <em>hátra</em>.
+        </p>
+      </div>
+      <div class="card">
+        <div class="ico">🗂️</div>
+        <h3>OverlayFS – Union fájlrendszer</h3>
+        <p>
+          A Docker alapértelmezett tárolóillesztője. Több read-only réteget és egy írható réteget <strong style="color:var(--blue)">egyetlen, egységes fájlrendszerként</strong> jelenít meg a konténernek.<br><br>
+          Copy-on-Write (CoW): olvasás az alsó rétegből, íráskor a felső rétegbe másolja az elemet.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 7. DOCKERFILE MAGYARÁZAT ══════════════════════ -->
+<section class="slide" id="s6">
+  <div class="title">A <span class="hl-blue">Dockerfile</span> – sorról sorra</div>
+  <div class="sub">Minden utasítás mit csinál pontosan?</div>
+
+  <div class="two mt">
+    <div class="code" data-lbl="Dockerfile – Node.js alkalmazás">
+<div class="ln"><span class="cc"># Alap image: Node.js 20 + minimális Alpine Linux</span></div>
+<div class="ln"><span class="kw">FROM</span> node:<span class="vr">20</span>-alpine</div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cc"># Munkakönyvtár beállítása a konténerben</span></div>
+<div class="ln"><span class="kw">WORKDIR</span> <span class="st">/app</span></div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cc"># ELŐBB a dependency lista – cache optimalizáció!</span></div>
+<div class="ln"><span class="kw">COPY</span> package*.json ./</div>
+<div class="ln"><span class="kw">RUN</span> npm ci --only=production</div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cc"># Forráskód másolása (ez változik a leggyakrabban)</span></div>
+<div class="ln"><span class="kw">COPY</span> . .</div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cc"># Dokumentálja, hogy a konténer ezen a porton hallgat</span></div>
+<div class="ln"><span class="kw">EXPOSE</span> <span class="vr">3000</span></div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cc"># Ne root-ként fusson az alkalmazás!</span></div>
+<div class="ln"><span class="kw">USER</span> node</div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cc"># A konténer indulásakor futtatott parancs</span></div>
+<div class="ln"><span class="kw">CMD</span> [<span class="st">"node"</span>, <span class="st">"src/index.js"</span>]</div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">🔍</div>
+        <h3>CMD vs. ENTRYPOINT</h3>
+        <p>
+          <ic>CMD</ic> – default parancs, <em>felülírható</em> a <ic>docker run</ic>-nál<br><br>
+          <ic>ENTRYPOINT</ic> – rögzített belépési pont; a CMD ilyenkor argumentum<br><br>
+          <strong style="color:var(--blue)">Best practice:</strong> <ic>ENTRYPOINT</ic> a végrehajtható, <ic>CMD</ic> a default argument
+        </p>
+      </div>
+      <div class="card">
+        <div class="ico">🏗️</div>
+        <h3>Multi-stage build</h3>
+        <p>
+          Több <ic>FROM</ic> utasítás egy Dockerfile-ban. Az első stage-ben buildelünk (compiler, test tools), a másodikba csak a <strong style="color:var(--blue)">futáshoz szükséges artifactokat</strong> másoljuk át.<br><br>
+          Eredmény: a prod image nem tartalmazza a build toolchaint → kisebb, biztonságosabb.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 8. PARANCSOK ══════════════════════ -->
+<section class="slide" id="s7">
+  <div class="title">Az alapvető <span class="hl-blue">CLI parancsok</span></div>
+  <div class="sub">Ezekkel a parancsokkal lefed az esetek 90%-a</div>
+
+  <div class="grid g2 mt" style="max-width:860px">
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="ico">🔨</div>
+        <h3>Image build és kezelés</h3>
+        <div class="code mt" style="margin-top:10px; font-size:11px">
+<div class="ln"><span class="cm">docker build</span> -t <span class="vr">myapp:1.0</span> .</div>
+<div class="ln"><span class="cc"># -t = tag (név:verzió), . = build context</span></div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cm">docker images</span>          <span class="cc"># listázza az image-eket</span></div>
+<div class="ln"><span class="cm">docker rmi</span> <span class="vr">myapp:old</span>    <span class="cc"># image törlése</span></div>
+<div class="ln"><span class="cm">docker image prune</span> -a  <span class="cc"># unused image-ek törlése</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ico">☁️</div>
+        <h3>Registry műveletek</h3>
+        <div class="code mt" style="margin-top:10px; font-size:11px">
+<div class="ln"><span class="cm">docker pull</span> <span class="vr">nginx:alpine</span></div>
+<div class="ln"><span class="cm">docker push</span> <span class="vr">user/myapp:1.0</span></div>
+<div class="ln"><span class="cm">docker tag</span>  <span class="vr">myapp:1.0</span> user/myapp:1.0</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="ico">▶️</div>
+        <h3>Konténer futtatás és kezelés</h3>
+        <div class="code mt" style="margin-top:10px; font-size:11px">
+<div class="ln"><span class="cm">docker run</span> -d -p <span class="vr">8080</span>:<span class="vr">80</span> --name web <span class="vr">nginx</span></div>
+<div class="ln"><span class="cc"># -d = detached (háttér), -p = port mapping</span></div>
+<div class="ln empty"></div>
+<div class="ln"><span class="cm">docker ps</span>            <span class="cc"># futó konténerek</span></div>
+<div class="ln"><span class="cm">docker ps</span> -a         <span class="cc"># összes (leállított is)</span></div>
+<div class="ln"><span class="cm">docker stop</span> <span class="vr">web</span>      <span class="cc"># graceful leállítás</span></div>
+<div class="ln"><span class="cm">docker rm</span>   <span class="vr">web</span>      <span class="cc"># konténer törlése</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ico">🔬</div>
+        <h3>Debug és inspectálás</h3>
+        <div class="code mt" style="margin-top:10px; font-size:11px">
+<div class="ln"><span class="cm">docker logs</span> -f <span class="vr">web</span>    <span class="cc"># real-time logok</span></div>
+<div class="ln"><span class="cm">docker exec</span> -it <span class="vr">web</span> sh <span class="cc"># shell a konténerbe</span></div>
+<div class="ln"><span class="cm">docker inspect</span> <span class="vr">web</span>    <span class="cc"># részletes JSON info</span></div>
+<div class="ln"><span class="cm">docker stats</span>          <span class="cc"># erőforrás-használat</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 9. NETWORKING ══════════════════════ -->
+<section class="slide" id="s8">
+  <div class="title">Docker <span class="hl-blue">Networking</span></div>
+  <div class="sub">Hogyan kommunikálnak a konténerek egymással és a külvilággal?</div>
+
+  <div class="grid g3 mt" style="max-width:960px">
+    <div class="card" style="border-color:rgba(13,183,237,.35)">
+      <div class="ico">🌉</div>
+      <h3>bridge (default)</h3>
+      <p>
+        Docker virtuális switch-et hoz létre. Az ugyanazon a bridge hálózaton lévő konténerek <strong style="color:var(--blue)">konténernév alapján</strong> elérik egymást (beépített DNS).<br><br>
+        <ic>docker network create mynet</ic><br>
+        Fejlesztői környezethez ideális.
+      </p>
+    </div>
+    <div class="card">
+      <div class="ico">🖥️</div>
+      <h3>host</h3>
+      <p>
+        A konténer a host hálózati interfészeit <strong style="color:var(--yellow)">közvetlenül használja</strong> – nincs NAT, nincs virtualizáció.<br><br>
+        Nagy hálózati teljesítmény, de nincs hálózati izoláció.<br><br>
+        Csak Linux hoston működik.
+      </p>
+    </div>
+    <div class="card">
+      <div class="ico">🚫</div>
+      <h3>none</h3>
+      <p>
+        Teljes hálózati izoláció – a konténernek <strong style="color:var(--muted)">nincs hálózati interfésze</strong>.<br><br>
+        Egyszeri futású batch jobokhoz, ahol biztonsági okokból nem szabad hálózati hozzáférés.
+      </p>
+    </div>
+  </div>
+
+  <div class="infobox mt2 w860">
+    <p>
+      <strong style="color:var(--blue)">Port mapping</strong> (<ic>-p</ic>): a host és konténer portját köti össze.
+      <ic>-p 8080:80</ic> → a host 8080-as portjára érkező forgalom a konténer 80-as portjára kerül (NAT/iptables szabályok via Docker daemon).<br><br>
+      <strong style="color:var(--blue)">Custom network DNS:</strong> user-defined bridge hálózaton a konténer neve automatikusan feloldható hostnévként → <ic>http://db:5432</ic> eléri a <ic>db</ic> nevű konténert.
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════ 10. VOLUMES ══════════════════════ -->
+<section class="slide" id="s9">
+  <div class="title">Volumes és <span class="hl-orange">adatperzisztencia</span></div>
+  <div class="sub">A konténer ephemeral (ideiglenes) – az adatok nem feltétlenül azok</div>
+
+  <div class="two mt">
+    <div>
+      <div class="card" style="border-color:rgba(255,90,95,.3); margin-bottom:14px">
+        <div class="ico">⚠️</div>
+        <h3>A konténer ideiglenes természete</h3>
+        <p>
+          A konténer írható rétege <strong style="color:var(--red)">a konténerrel együtt törlődik</strong>. Ha az alkalmazás az adatokat a konténer fájlrendszerébe írja, azok elvesznek a konténer törlésekor.<br><br>
+          Adatbázisoknál, feltöltött fájloknál, logfájloknál ez komoly probléma lenne – erre való a volume.
+        </p>
+      </div>
+      <div class="card" style="border-color:rgba(54,224,161,.3)">
+        <div class="ico">💾</div>
+        <h3>Named Volume</h3>
+        <p>
+          A Docker engine kezeli a tárhelyet (<ic>/var/lib/docker/volumes/</ic>). A konténertől <strong style="color:var(--green)">független életciklusa van</strong> – konténer törlésével nem törlődik.<br><br>
+          <ic>docker volume create pgdata</ic><br>
+          <ic>docker run -v pgdata:/var/lib/postgresql/data postgres</ic>
+        </p>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">📂</div>
+        <h3>Bind Mount</h3>
+        <p>
+          A host fájlrendszerének egy könyvtárát mountolja a konténerbe. <strong style="color:var(--blue)">Közvetlen hozzáférés</strong> a host fájljaihoz – fejlesztéskor ideális, mert a kód módosítása azonnal látszik a konténerben.<br><br>
+          <ic>docker run -v $(pwd):/app node</ic>
+        </p>
+      </div>
+      <div class="card">
+        <div class="ico">⚡</div>
+        <h3>tmpfs Mount</h3>
+        <p>
+          Kizárólag a host memóriájában él – <strong style="color:var(--yellow)">nem kerül lemezre</strong>. Érzékeny, ideiglenes adatokhoz (pl. session tokenek, titkosítási kulcsok).<br><br>
+          <ic>docker run --tmpfs /tmp:rw,size=100m app</ic>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 11. DOCKER COMPOSE ══════════════════════ -->
+<section class="slide" id="s10">
+  <div class="title">Docker <span class="hl-blue">Compose</span></div>
+  <div class="sub">Multi-container alkalmazások deklaratív definíciója</div>
+
+  <div class="two mt">
+    <div class="code" data-lbl="docker-compose.yml">
+<div class="ln"><span class="kw">services</span>:</div>
+<div class="ln empty"></div>
+<div class="ln">  <span class="vr">api</span>:                          <span class="cc"># saját alkalmazásunk</span></div>
+<div class="ln">    <span class="kw">build</span>: .</div>
+<div class="ln">    <span class="kw">ports</span>: [<span class="st">"3000:3000"</span>]</div>
+<div class="ln">    <span class="kw">environment</span>:</div>
+<div class="ln">      DATABASE_URL: <span class="st">postgres://user:pass@db/mydb</span></div>
+<div class="ln">      REDIS_URL: <span class="st">redis://cache:6379</span></div>
+<div class="ln">    <span class="kw">depends_on</span>:</div>
+<div class="ln">      db: { condition: service_healthy }</div>
+<div class="ln">    <span class="kw">networks</span>: [backend]</div>
+<div class="ln empty"></div>
+<div class="ln">  <span class="vr">db</span>:                           <span class="cc"># PostgreSQL</span></div>
+<div class="ln">    <span class="kw">image</span>: postgres:<span class="vr">16</span>-alpine</div>
+<div class="ln">    <span class="kw">environment</span>:</div>
+<div class="ln">      POSTGRES_PASSWORD: <span class="st">secret</span></div>
+<div class="ln">    <span class="kw">volumes</span>: [pgdata:/var/lib/postgresql/data]</div>
+<div class="ln">    <span class="kw">healthcheck</span>:</div>
+<div class="ln">      <span class="kw">test</span>: [<span class="st">"CMD"</span>, <span class="st">"pg_isready"</span>]</div>
+<div class="ln">      <span class="kw">interval</span>: 5s</div>
+<div class="ln">    <span class="kw">networks</span>: [backend]</div>
+<div class="ln empty"></div>
+<div class="ln">  <span class="vr">cache</span>:                        <span class="cc"># Redis</span></div>
+<div class="ln">    <span class="kw">image</span>: redis:<span class="vr">7</span>-alpine</div>
+<div class="ln">    <span class="kw">networks</span>: [backend]</div>
+<div class="ln empty"></div>
+<div class="ln"><span class="kw">volumes</span>:</div>
+<div class="ln">  pgdata:</div>
+<div class="ln"><span class="kw">networks</span>:</div>
+<div class="ln">  backend:</div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="ico">📋</div>
+        <h3>Miért Compose?</h3>
+        <p>
+          Kézzel minden konténert külön <ic>docker run</ic>-nal indítani és összekapcsolni rendkívül körülményes.<br><br>
+          A Compose <strong style="color:var(--blue)">egyetlen YAML fájlban</strong> deklarálja az összes service-t, hálózatot és volume-ot → egy paranccsal elindítható, leállítható az egész stack.
+        </p>
+      </div>
+      <div class="code" data-lbl="Compose parancsok" style="font-size:11px">
+<div class="ln"><span class="cm">docker compose up</span> -d       <span class="cc"># stack indítása</span></div>
+<div class="ln"><span class="cm">docker compose up</span> --build  <span class="cc"># újrabuilddel</span></div>
+<div class="ln"><span class="cm">docker compose logs</span> -f api <span class="cc"># service logok</span></div>
+<div class="ln"><span class="cm">docker compose ps</span>          <span class="cc"># service státuszok</span></div>
+<div class="ln"><span class="cm">docker compose down</span> -v     <span class="cc"># leállítás + volume</span></div>
+<div class="ln"><span class="cm">docker compose exec</span> api sh <span class="cc"># shell a service-be</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 12. BIZTONSÁG ══════════════════════ -->
+<section class="slide" id="s11">
+  <div class="title">Docker <span class="hl-orange">Biztonsági</span> Alapelvek</div>
+  <div class="sub">Alapértelmezetten a Docker nem biztonságos – te kell, hogy az legyen</div>
+
+  <div class="grid g2 mt" style="max-width:860px">
+    <div class="card">
+      <div class="ico">👤</div>
+      <h3>Principle of Least Privilege – ne root!</h3>
+      <p>
+        Alapértelmezetten a konténer <strong style="color:var(--red)">root-ként fut</strong>. Ha az alkalmazást kompromittálják, a támadó root jogosultságot kap a konténerben – és privilege escalation révén esetleg a hoston is.<br><br>
+        <ic>USER node</ic> a Dockerfile végén – mindig.
+      </p>
+    </div>
+    <div class="card">
+      <div class="ico">🤫</div>
+      <h3>Secrets kezelése – soha ne image-be!</h3>
+      <p>
+        Ha egy secret bekerül egy image rétegbe, <strong style="color:var(--red)">a <ic>docker history</ic> paranccsal kiolvasható</strong>, még ha törölted is.<br><br>
+        Megoldás: <ic>.env</ic> fájl (ne commitold!), Docker Secrets, Vault, vagy a cloud provider secret managere (AWS SSM, GCP Secret Manager).
+      </p>
+    </div>
+    <div class="card">
+      <div class="ico">🏔️</div>
+      <h3>Minimális base image</h3>
+      <p>
+        <ic>alpine</ic> (5 MB) és <ic>distroless</ic> képek nem tartalmaznak shell-t, csomagkezelőt, debug toolokat.<br><br>
+        Kisebb image = kisebb <strong style="color:var(--blue)">attack surface</strong>. A CVE scannereknek is kevesebb a dolga.
+      </p>
+    </div>
+    <div class="card">
+      <div class="ico">🔍</div>
+      <h3>Image vulnerability scanning</h3>
+      <p>
+        <strong style="color:var(--blue)">Trivy</strong>, <strong style="color:var(--blue)">Snyk</strong>, <strong style="color:var(--blue)">Docker Scout</strong> – integrálhatók CI/CD pipeline-ba.<br><br>
+        Pineld a base image-et digest alapján: <ic>node@sha256:abc123…</ic> → garantált reprodukálhatóság, nincs titkos frissítés.
+      </p>
+    </div>
+    <div class="card">
+      <div class="ico">🔒</div>
+      <h3>Read-only fájlrendszer</h3>
+      <p>
+        <ic>--read-only</ic> flag: a konténer nem tud a saját fájlrendszerébe írni.<br><br>
+        Kombináld <ic>--tmpfs /tmp</ic>-vel az ideiglenes írási igényekhez → a futásidejű módosítások teljes mértékben kontrolláltak.
+      </p>
+    </div>
+    <div class="card">
+      <div class="ico">📊</div>
+      <h3>Resource limits</h3>
+      <p>
+        Limit nélkül egy konténer felzabálhatja a host összes erőforrását (<em>noisy neighbor problem</em>).<br><br>
+        <ic>--memory 512m</ic> &nbsp;|&nbsp; <ic>--cpus 0.5</ic><br>
+        Compose-ban: <ic>deploy.resources.limits</ic>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 13. CI/CD ══════════════════════ -->
+<section class="slide" id="s12">
+  <div class="title">Docker a <span class="hl-blue">CI/CD Pipeline-ban</span></div>
+  <div class="sub">GitHub Actions – build, scan, push, deploy automatizálva</div>
+
+  <div class="code w860 mt" data-lbl="github-actions.yml">
+<div class="ln"><span class="kw">name</span>: Docker CI/CD</div>
+<div class="ln"><span class="kw">on</span>: { push: { branches: [main] } }</div>
+<div class="ln empty"></div>
+<div class="ln"><span class="kw">jobs</span>:</div>
+<div class="ln">  <span class="vr">build-push</span>:</div>
+<div class="ln">    <span class="kw">runs-on</span>: ubuntu-latest</div>
+<div class="ln">    <span class="kw">steps</span>:</div>
+<div class="ln">      - <span class="kw">uses</span>: actions/checkout@v4</div>
+<div class="ln empty"></div>
+<div class="ln">      - <span class="kw">name</span>: <span class="st">Setup Buildx (multi-platform support)</span></div>
+<div class="ln">        <span class="kw">uses</span>: docker/setup-buildx-action@v3</div>
+<div class="ln empty"></div>
+<div class="ln">      - <span class="kw">name</span>: <span class="st">Login to Docker Hub</span></div>
+<div class="ln">        <span class="kw">uses</span>: docker/login-action@v3</div>
+<div class="ln">        <span class="kw">with</span>: { username: <span class="vr">${{ secrets.DOCKERHUB_USER }}</span>, password: <span class="vr">${{ secrets.DOCKERHUB_TOKEN }}</span> }</div>
+<div class="ln empty"></div>
+<div class="ln">      - <span class="kw">name</span>: <span class="st">Build &amp; Push (amd64 + arm64)</span></div>
+<div class="ln">        <span class="kw">uses</span>: docker/build-push-action@v5</div>
+<div class="ln">        <span class="kw">with</span>:</div>
+<div class="ln">          push: <span class="kw">true</span></div>
+<div class="ln">          tags: user/myapp:<span class="vr">${{ github.sha }}</span>,user/myapp:latest</div>
+<div class="ln">          platforms: linux/amd64,linux/arm64</div>
+<div class="ln">          cache-from: type=gha          <span class="cc"># GitHub Actions cache</span></div>
+<div class="ln">          cache-to: type=gha,mode=max</div>
+<div class="ln empty"></div>
+<div class="ln">      - <span class="kw">name</span>: <span class="st">Security Scan – Trivy</span></div>
+<div class="ln">        <span class="kw">uses</span>: aquasecurity/trivy-action@master</div>
+<div class="ln">        <span class="kw">with</span>: { image-ref: <span class="st">'user/myapp:latest'</span>, severity: <span class="st">'HIGH,CRITICAL'</span>, exit-code: <span class="st">'1'</span> }</div>
+  </div>
+
+  <div class="callout mt w860">
+    <p>
+      💡 <strong>Immutable image tag-ek:</strong> a <ic>${{ github.sha }}</ic> biztosítja, hogy minden Git commit pontosan egy image-hez rendelhető → teljes auditálhatóság, egyszerű rollback.
+      A <ic>latest</ic> tag csak kényelmi hivatkozás – prodban mindig konkrét SHA vagy verzió tag-et használj!
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════ 14. HOGYAN KEZDJ HOZZÁ? ══════════════════════ -->
+<section class="slide" id="s13">
+  <div class="title">Hogyan <span class="hl-blue">kezdj hozzá?</span></div>
+  <div class="sub">Ajánlott tanulási útvonal és ingyenes erőforrások</div>
+
+  <div class="two mt">
+    <div>
+      <div class="layers">
+        <div class="layer l1">
+          <span class="li">1️⃣</span>
+          <div><strong>Docker Desktop telepítése</strong><br>
+          <span style="font-size:12px;color:var(--muted)">docker.com/get-started – Windows, Mac, Linux. Ingyenes.</span></div>
+        </div>
+        <div class="layer l2">
+          <span class="li">2️⃣</span>
+          <div><strong>Első konténer futtatása</strong><br>
+          <span style="font-size:12px;color:var(--muted)"><ic>docker run hello-world</ic> – megerősíti, hogy minden működik</span></div>
+        </div>
+        <div class="layer l3">
+          <span class="li">3️⃣</span>
+          <div><strong>Kész image kipróbálása</strong><br>
+          <span style="font-size:12px;color:var(--muted)"><ic>docker run -p 8080:80 nginx</ic> → localhost:8080-on fut</span></div>
+        </div>
+        <div class="layer l4">
+          <span class="li">4️⃣</span>
+          <div><strong>Saját Dockerfile írása</strong><br>
+          <span style="font-size:12px;color:var(--muted)">Csomagold be a saját Python vagy Node.js projektedet</span></div>
+        </div>
+        <div class="layer l5">
+          <span class="li">5️⃣</span>
+          <div><strong>Docker Compose – teljes stack</strong><br>
+          <span style="font-size:12px;color:var(--muted)">API + adatbázis + cache – egy <ic>docker compose up</ic>-pal</span></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="ico">📚</div>
+        <h3>Ajánlott tanulási anyagok</h3>
+        <p>
+          🌐 <strong style="color:var(--blue)">docs.docker.com</strong> – hivatalos, naprakész dokumentáció<br>
+          🎮 <strong style="color:var(--blue)">labs.play-with-docker.com</strong> – böngészőből, telepítés nélkül<br>
+          🎓 <strong style="color:var(--blue)">docker.com/101-tutorial</strong> – interaktív kezdő kurzus<br>
+          📺 <strong style="color:var(--blue)">TechWorld with Nana</strong> – YouTube, kiváló minőség<br>
+          📗 <strong style="color:var(--blue)">„Docker Deep Dive"</strong> – Nigel Poulton könyve
+        </p>
+      </div>
+      <div class="callout">
+        <p>
+          ⏱️ <strong>Mennyi idő kell?</strong><br>
+          Az alapok (build, run, compose) <strong style="color:var(--blue)">1–2 nap</strong> alatt elsajátíthatók.<br>
+          Networking, volumes, security, CI/CD integráció: <strong style="color:var(--blue)">1–2 hét</strong> rendszeres gyakorlással.<br>
+          Kubernetes irányba továbblépni Dockeres tapasztalat után sokkal könnyebb.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════ 15. ÖSSZEFOGLALÁS ══════════════════════ -->
+<section class="slide" id="s14">
+  <div class="title">Összefoglalás – <span class="hl-green">Mit tanultunk?</span></div>
+  <div class="sub">A legfontosabb takeaway-ek egyetlen diában</div>
+
+  <div class="grid g2 mt" style="max-width:860px">
+    <div class="card" style="border-color:rgba(13,183,237,.4)">
+      <div class="ico">📦</div>
+      <h3>Docker = hordozható futtatási környezet</h3>
+      <p>Az alkalmazás és összes függőségének egységes csomagja. Eliminálta a „works on my machine" problémát.</p>
+    </div>
+    <div class="card" style="border-color:rgba(179,136,255,.4)">
+      <div class="ico">🔁</div>
+      <h3>Dockerfile → Image → Container</h3>
+      <p>Build instrukciók → immutable snapshot → futó process-izolátum. Ez a Docker teljes életciklusa.</p>
+    </div>
+    <div class="card" style="border-color:rgba(255,209,102,.4)">
+      <div class="ico">⚡</div>
+      <h3>Hatékonyabb, mint a VM</h3>
+      <p>Shared kernel, namespaces + cgroups alapú izoláció → közel natív teljesítmény, MB-os méret, másodperces indulás.</p>
+    </div>
+    <div class="card" style="border-color:rgba(54,224,161,.4)">
+      <div class="ico">🎻</div>
+      <h3>Compose = deklaratív multi-service stack</h3>
+      <p>Egy YAML fájlban az egész infrastruktúra leírva, egy paranccsal kezelhető. A fejlesztői workflow alapja.</p>
+    </div>
+    <div class="card" style="border-color:rgba(255,140,66,.4)">
+      <div class="ico">🔒</div>
+      <h3>Biztonság nem automatikus</h3>
+      <p>Rootless futtatás, minimális image, secrets kezelés, resource limits, rendszeres CVE scan – ezek nem opcionálisak.</p>
+    </div>
+    <div class="card" style="border-color:rgba(255,90,95,.35)">
+      <div class="ico">🚀</div>
+      <h3>A cloud natív fejlesztés alapköve</h3>
+      <p>Minden major cloud provider, CI/CD rendszer és orchestration platform (Kubernetes) Docker/OCI image-ekre épít.</p>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+const n = slides.length;
+let cur = 0;
+
+function go(to) {
+  if (to < 0 || to >= n) return;
+  slides[cur].classList.remove('active');
+  slides[cur].classList.add('out');
+  const prev = cur;
+  cur = to;
+  setTimeout(() => slides[prev].classList.remove('out'), 420);
+  slides[cur].classList.add('active');
+  update();
+}
+
+function update() {
+  document.getElementById('prog').style.width = ((cur+1)/n*100)+'%';
+  document.getElementById('ctr').textContent  = (cur+1)+' / '+n;
+  document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('on', i===cur));
+}
+
+const dc = document.getElementById('dots');
+slides.forEach((_,i) => {
+  const d = document.createElement('div');
+  d.className = 'dot'+(i===0?' on':'');
+  d.onclick = () => go(i);
+  dc.appendChild(d);
+});
+
+document.getElementById('pv').onclick = () => go(cur-1);
+document.getElementById('nx').onclick = () => go(cur+1);
+
+document.addEventListener('keydown', e => {
+  if(['ArrowRight','ArrowDown',' '].includes(e.key)) { e.preventDefault(); go(cur+1); }
+  if(['ArrowLeft','ArrowUp'].includes(e.key))         { e.preventDefault(); go(cur-1); }
+});
+
+let tx=0;
+document.addEventListener('touchstart', e => tx=e.touches[0].clientX);
+document.addEventListener('touchend',   e => { const d=e.changedTouches[0].clientX-tx; if(Math.abs(d)>50) go(cur+(d<0?1:-1)); });
+
+slides[0].classList.add('active');
+update();
+</script>
+</body>
+</html>
